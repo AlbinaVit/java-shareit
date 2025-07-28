@@ -4,14 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.model.User;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -25,7 +23,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto create(UserDto userDto) {
-        validateUser(userDto);
         checkEmailUniqueness(userDto.getEmail());
 
         User user = userMapper.toUser(userDto);
@@ -37,17 +34,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto update(Long userId, UserDto userDto) {
-        if (!users.containsKey(userId)) {
-            throw new NotFoundException("Пользователь не найден с id = " + userId);
-        }
+        User existingUser = findUserById(userId);
 
-        User existingUser = users.get(userId);
-
-        if (userDto.getName() != null) {
+        if (userDto.getName() != null && !userDto.getName().isBlank()) {
             existingUser.setName(userDto.getName());
         }
 
-        if (userDto.getEmail() != null) {
+        if (userDto.getEmail() != null && !userDto.getEmail().isBlank()) {
             if (!existingUser.getEmail().equals(userDto.getEmail())) {
                 checkEmailUniqueness(userDto.getEmail());
             }
@@ -58,20 +51,18 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<User> getUserById(Long userId) {
+    public User findUserById(Long userId) {
         User user = users.get(userId);
         if (user == null) {
-            return Optional.empty();
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
         }
-        return Optional.of(user);
+        return user;
     }
 
     @Override
     public UserDto getById(Long userId) {
-        if (!users.containsKey(userId)) {
-            throw new NotFoundException("Пользователь не найден с id = " + userId);
-        }
-        return userMapper.toUserDto(users.get(userId));
+        User user = findUserById(userId);
+        return userMapper.toUserDto(user);
     }
 
     @Override
@@ -83,19 +74,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void delete(Long userId) {
+        findUserById(userId);
         users.remove(userId);
-    }
-
-    private void validateUser(UserDto userDto) {
-        if (userDto.getName() == null || userDto.getName().isBlank()) {
-            throw new ValidationException("Имя не может быть пустой строкой");
-        }
-        if (userDto.getEmail() == null || userDto.getEmail().isBlank()) {
-            throw new ValidationException("Email не может быть пустой строкой");
-        }
-        if (!userDto.getEmail().contains("@")) {
-            throw new ValidationException("Email должно включать @");
-        }
     }
 
     private void checkEmailUniqueness(String email) {

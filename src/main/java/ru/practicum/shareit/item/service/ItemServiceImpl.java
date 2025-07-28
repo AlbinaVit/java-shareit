@@ -3,7 +3,6 @@ package ru.practicum.shareit.item.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
@@ -29,10 +28,8 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemDto addItem(Long userId, ItemDto itemDto) {
-        validateItem(itemDto);
 
-        User owner = userService.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с ID " + userId + " не найден"));
+        User owner = userService.findUserById(userId);
 
         Item item = itemMapper.toItem(itemDto);
         item.setId(idGenerator.getAndIncrement());
@@ -44,10 +41,7 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemDto updateItem(Long userId, Long itemId, ItemDto itemDto) {
-        Item item = items.get(itemId);
-        if (item == null) {
-            throw new NotFoundException("Вещь с id " + itemId + " не найдена");
-        }
+        Item item = findItemById(itemId);
 
         if (!item.getOwner().getId().equals(userId)) {
             throw new NotFoundException("Редактировать вещь может только владелец");
@@ -70,19 +64,14 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    public ItemDto getItemById(Long userId, Long itemId) {
-        Item item = items.get(itemId);
-        if (item == null) {
-            throw new NotFoundException("Вещь с id " + itemId + " не найдена");
-        }
+    public ItemDto getItemById(Long itemId) {
+        Item item = findItemById(itemId);
         return itemMapper.toItemDto(item);
     }
 
     @Override
     public List<ItemDto> getItemsByOwner(Long ownerId) {
-        if (!userService.getUserById(ownerId).isPresent()) {
-            throw new NotFoundException("Пользователь с id " + ownerId + " не найден");
-        }
+        userService.findUserById(ownerId);
 
         return items.values().stream()
                 .filter(item -> item.getOwner().getId().equals(ownerId))
@@ -106,15 +95,12 @@ public class ItemServiceImpl implements ItemService {
                 .collect(Collectors.toList());
     }
 
-    private void validateItem(ItemDto itemDto) {
-        if (itemDto.getName() == null || itemDto.getName().isBlank()) {
-            throw new ValidationException("Название вещи не может быть пустым");
+    private Item findItemById(Long itemId) {
+        Item item = items.get(itemId);
+        if (item == null) {
+            throw new NotFoundException("Вещь с id " + itemId + " не найдена");
         }
-        if (itemDto.getDescription() == null || itemDto.getDescription().isBlank()) {
-            throw new ValidationException("Описание вещи не может быть пустым");
-        }
-        if (itemDto.getAvailable() == null) {
-            throw new ValidationException("Статус доступности вещи должен быть указан");
-        }
+        return item;
     }
+
 }
