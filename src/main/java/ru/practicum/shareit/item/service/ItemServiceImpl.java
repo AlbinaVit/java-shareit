@@ -2,7 +2,9 @@ package ru.practicum.shareit.item.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.practicum.shareit.booking.BookingRepository;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
@@ -10,33 +12,24 @@ import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ItemServiceImpl implements ItemService {
 
-    private final Map<Long, Item> items = new ConcurrentHashMap<>();
-    private final AtomicLong idGenerator = new AtomicLong(1);
+    private final ItemRepository itemRepository;
     private final UserService userService;
     private final ItemMapper itemMapper;
+    private final BookingRepository bookingRepository;
 
     @Override
     public ItemDto addItem(Long userId, ItemDto itemDto) {
-
         User owner = userService.findUserById(userId);
-
-        Item item = itemMapper.toItem(itemDto);
-        item.setId(idGenerator.getAndIncrement());
-        item.setOwner(owner);
-        items.put(item.getId(), item);
-
-        return itemMapper.toItemDto(item);
+        Item item = itemMapper.toItem(itemDto, owner);
+        Item savedItem = itemRepository.save(item);
+        return itemMapper.toItemDto(savedItem, userId);
     }
 
     @Override
@@ -59,24 +52,23 @@ public class ItemServiceImpl implements ItemService {
         if (itemDto.getRequestId() != null) {
             item.setRequestId(itemDto.getRequestId());
         }
-
-        return itemMapper.toItemDto(item);
+        Item updatedItem = itemRepository.save(item);
+        return itemMapper.toItemDto(updatedItem, userId);
     }
 
     @Override
-    public ItemDto getItemById(Long itemId) {
+    public ItemDto getItemById(Long itemId, Long userId) {
         Item item = findItemById(itemId);
-        return itemMapper.toItemDto(item);
+        return itemMapper.toItemDto(item, userId);
     }
 
     @Override
     public List<ItemDto> getItemsByOwner(Long ownerId) {
         userService.findUserById(ownerId);
 
-        return items.values().stream()
-                .filter(item -> item.getOwner().getId().equals(ownerId))
-                .map(itemMapper::toItemDto)
-                .sorted(Comparator.comparing(ItemDto::getId))
+        List<Item> items = itemRepository.findByOwnerId(ownerId);
+        return items.stream()
+                .map(item -> itemMapper.toItemDto(item, ownerId))
                 .collect(Collectors.toList());
     }
 
@@ -86,21 +78,21 @@ public class ItemServiceImpl implements ItemService {
             return Collections.emptyList();
         }
 
-        String searchText = text.toLowerCase();
-        return items.values().stream()
-                .filter(Item::getAvailable)
-                .filter(item -> item.getName().toLowerCase().contains(searchText) ||
-                        item.getDescription().toLowerCase().contains(searchText))
-                .map(itemMapper::toItemDto)
+        List<Item> items = itemRepository.searchAvailableItems(text);
+        return items.stream()
+                .map(item -> itemMapper.toItemDto(item, null))
                 .collect(Collectors.toList());
     }
 
-    private Item findItemById(Long itemId) {
-        Item item = items.get(itemId);
-        if (item == null) {
-            throw new NotFoundException("Вещь с id " + itemId + " не найдена");
-        }
-        return item;
+    @Override
+    public Item findItemById(Long itemId) {
+        return itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Вещь с id " + itemId + " не найдена"));
+    }
+
+    @Override
+    public List<Item> findItemsByOwnerId(Long ownerId) {
+        return itemRepository.findByOwnerId(ownerId);
     }
 
 }
