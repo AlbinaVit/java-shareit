@@ -23,6 +23,9 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CommentDto createComment(Long userId, Long itemId, CommentDto commentDto) {
+        if (commentDto.getText() == null || commentDto.getText().trim().isEmpty()) {
+            throw new ValidationException("Текст комментария не может быть пустым");
+        }
 
         User author = userService.findUserById(userId);
         Item item = itemService.findItemById(itemId);

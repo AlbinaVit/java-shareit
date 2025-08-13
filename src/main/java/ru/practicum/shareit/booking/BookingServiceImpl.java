@@ -5,8 +5,10 @@ import org.springframework.stereotype.Service;
 import ru.practicum.shareit.booking.dto.BookingDto;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
+import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.service.ItemService;
+import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 import ru.practicum.shareit.utils.BookingStatus;
@@ -25,6 +27,10 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public BookingDto createBooking(Long userId, BookingRequestDto bookingRequestDto) {
+        if (bookingRequestDto.getStart() == null || bookingRequestDto.getEnd() == null) {
+            throw new ValidationException("Дата начала и окончания бронирования не могут быть null");
+        }
+
         User booker = userService.findUserById(userId);
 
         Item item = itemService.findItemById(bookingRequestDto.getItemId());
@@ -42,13 +48,18 @@ public class BookingServiceImpl implements BookingService {
         booking.setStatus(BookingStatus.WAITING);
 
         Booking savedBooking = bookingRepository.save(booking);
-        return bookingMapper.toBookingDto(savedBooking);
+        ItemDto itemDto = itemService.getItemById(item.getId(), userId);
+        UserDto userDto = userService.getById(userId);
+        return bookingMapper.toBookingDto(savedBooking, itemDto, userDto);
     }
 
     @Override
     public BookingDto approveBooking(Long ownerId, Long bookingId, boolean approved) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new NotFoundException("Бронирование не найдено"));
+        Booking booking = findBookingById(bookingId);
+
+        if (!booking.getStatus().equals(BookingStatus.WAITING)) {
+            throw new ValidationException("Бронирование не может быть подтверждено, так как его статус не WAITING");
+        }
 
         if (!booking.getItem().getOwner().getId().equals(ownerId)) {
             throw new ValidationException("Только владелец вещи может подтвердить бронирование");
@@ -56,7 +67,9 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(approved ? BookingStatus.APPROVED : BookingStatus.REJECTED);
         Booking updatedBooking = bookingRepository.save(booking);
-        return bookingMapper.toBookingDto(updatedBooking);
+        ItemDto itemDto = itemService.getItemById(updatedBooking.getItem().getId(), ownerId);
+        UserDto userDto = userService.getById(updatedBooking.getBooker().getId());
+        return bookingMapper.toBookingDto(updatedBooking, itemDto, userDto);
     }
 
     @Override
@@ -66,7 +79,9 @@ public class BookingServiceImpl implements BookingService {
         if (!booking.getBooker().getId().equals(userId) && !booking.getItem().getOwner().getId().equals(userId)) {
             throw new ValidationException("У вас нет доступа к этому бронированию");
         }
-        return bookingMapper.toBookingDto(booking);
+        ItemDto itemDto = itemService.getItemById(booking.getItem().getId(), userId);
+        UserDto userDto = userService.getById(booking.getBooker().getId());
+        return bookingMapper.toBookingDto(booking, itemDto, userDto);
     }
 
     @Override
@@ -74,7 +89,13 @@ public class BookingServiceImpl implements BookingService {
         userService.findUserById(userId);
         LocalDateTime now = LocalDateTime.now();
         List<Booking> bookings = getBookingsByState(userId, state, now);
-        return bookings.stream().map(bookingMapper::toBookingDto).collect(Collectors.toList());
+        return bookings.stream()
+                .map(booking -> {
+                    ItemDto itemDto = itemService.getItemById(booking.getItem().getId(), userId);
+                    UserDto userDto = userService.getById(booking.getBooker().getId());
+                    return bookingMapper.toBookingDto(booking, itemDto, userDto);
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -83,7 +104,7 @@ public class BookingServiceImpl implements BookingService {
 
         List<Item> ownerItems = itemService.findItemsByOwnerId(ownerId);
         if (ownerItems.isEmpty()) {
-            throw new NotFoundException("У пользователя нет вещей для бронирования");
+            throw new NotFoundException("У пользователя нет вещей для бронирования, ownerId = " + ownerId);
         }
 
         try {
@@ -92,12 +113,21 @@ public class BookingServiceImpl implements BookingService {
             throw new ValidationException("Unknown state: " + state);
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        List<Booking> bookings = getBookingsByState(ownerId, state, now);
+        List<Booking> bookings = getBookingsByOwnerState(ownerId, state, LocalDateTime.now());
 
         return bookings.stream()
-                .map(bookingMapper::toBookingDto)
+                .map(booking -> {
+                    ItemDto itemDto = itemService.getItemById(booking.getItem().getId(), ownerId);
+                    UserDto userDto = userService.getById(booking.getBooker().getId());
+                    return bookingMapper.toBookingDto(booking, itemDto, userDto);
+                })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Booking findBookingById(Long bookingId) {
+        return bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Бронирование не найдено c bookingId = " + bookingId));
     }
 
     private List<Booking> getBookingsByState(Long userId, String state, LocalDateTime now) {
@@ -115,6 +145,24 @@ public class BookingServiceImpl implements BookingService {
             case "ALL":
             default:
                 return bookingRepository.findByBookerIdOrderByStartDesc(userId);
+        }
+    }
+
+    private List<Booking> getBookingsByOwnerState(Long ownerId, String state, LocalDateTime now) {
+        switch (state.toUpperCase()) {
+            case "CURRENT":
+                return bookingRepository.findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(ownerId, now, now);
+            case "PAST":
+                return bookingRepository.findByItemOwnerIdAndEndBeforeOrderByStartDesc(ownerId, now);
+            case "FUTURE":
+                return bookingRepository.findByItemOwnerIdAndStartAfterOrderByStartDesc(ownerId, now);
+            case "WAITING":
+                return bookingRepository.findByItemOwnerIdAndStatusOrderByStartDesc(ownerId, BookingStatus.WAITING);
+            case "REJECTED":
+                return bookingRepository.findByItemOwnerIdAndStatusOrderByStartDesc(ownerId, BookingStatus.REJECTED);
+            case "ALL":
+            default:
+                return bookingRepository.findByItemOwnerIdOrderByStartDesc(ownerId);
         }
     }
 }
