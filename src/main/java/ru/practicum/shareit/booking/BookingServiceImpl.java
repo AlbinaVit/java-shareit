@@ -14,7 +14,11 @@ import ru.practicum.shareit.user.service.UserService;
 import ru.practicum.shareit.utils.BookingStatus;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -86,13 +90,12 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingDto> getUserBookings(Long userId, String state) {
-        userService.findUserById(userId);
+        UserDto userDto = userService.getById(userId);
         LocalDateTime now = LocalDateTime.now();
         List<Booking> bookings = getBookingsByState(userId, state, now);
         return bookings.stream()
                 .map(booking -> {
-                    ItemDto itemDto = itemService.getItemById(booking.getItem().getId(), userId);
-                    UserDto userDto = userService.getById(booking.getBooker().getId());
+                    ItemDto itemDto = itemService.getItemByOwnerId(booking.getItem().getId(), userId);
                     return bookingMapper.toBookingDto(booking, itemDto, userDto);
                 })
                 .collect(Collectors.toList());
@@ -100,7 +103,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingDto> getOwnerBookings(Long ownerId, String state) {
-        userService.findUserById(ownerId);
+        UserDto userDto = userService.getById(ownerId);
 
         List<Item> ownerItems = itemService.findItemsByOwnerId(ownerId);
         if (ownerItems.isEmpty()) {
@@ -117,8 +120,7 @@ public class BookingServiceImpl implements BookingService {
 
         return bookings.stream()
                 .map(booking -> {
-                    ItemDto itemDto = itemService.getItemById(booking.getItem().getId(), ownerId);
-                    UserDto userDto = userService.getById(booking.getBooker().getId());
+                    ItemDto itemDto = itemService.getItemByOwnerId(booking.getItem().getId(), ownerId);
                     return bookingMapper.toBookingDto(booking, itemDto, userDto);
                 })
                 .collect(Collectors.toList());

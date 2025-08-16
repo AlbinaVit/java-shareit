@@ -83,6 +83,12 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
+    public ItemDto getItemByOwnerId(Long itemId, Long ownerId) {
+        Item item = findItemById(itemId);
+        return itemMapper.toItemDto(item, ownerId, Collections.emptyList(), null, null);
+    }
+
+    @Override
     public List<ItemDto> getItemsByOwner(Long ownerId) {
         userService.findUserById(ownerId);
         List<Item> items = itemRepository.findByOwnerId(ownerId);
