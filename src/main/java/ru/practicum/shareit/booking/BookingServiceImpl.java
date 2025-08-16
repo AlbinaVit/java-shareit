@@ -14,11 +14,7 @@ import ru.practicum.shareit.user.service.UserService;
 import ru.practicum.shareit.utils.BookingStatus;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
