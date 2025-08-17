@@ -10,6 +10,7 @@ import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.service.ItemService;
 import ru.practicum.shareit.user.dto.UserDto;
+import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 import ru.practicum.shareit.utils.BookingStatus;
@@ -27,6 +28,7 @@ public class BookingServiceImpl implements BookingService {
     private final ItemService itemService;
     private final BookingMapper bookingMapper;
     private final ItemMapper itemMapper;
+    private final UserMapper userMapper;
 
     @Override
     public BookingDto createBooking(Long userId, BookingRequestDto bookingRequestDto) {
@@ -102,7 +104,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingDto> getOwnerBookings(Long ownerId, String state) {
-        UserDto userDto = userService.getById(ownerId);
+        userService.findUserById(ownerId);
 
         List<Item> ownerItems = itemService.findItemsByOwnerId(ownerId);
         if (ownerItems.isEmpty()) {
@@ -117,7 +119,8 @@ public class BookingServiceImpl implements BookingService {
         return bookings.stream()
                 .map(booking -> {
                     ItemDto itemDto = itemMapper.toItemDto(booking.getItem(), booking.getBooker().getId(), Collections.emptyList(), null, null);
-                    return bookingMapper.toBookingDto(booking, itemDto, userDto);
+                    UserDto bookerDto = userMapper.toUserDto(booking.getBooker());
+                    return bookingMapper.toBookingDto(booking, itemDto, bookerDto);
                 })
                 .collect(Collectors.toList());
     }
