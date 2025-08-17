@@ -6,6 +6,7 @@ import ru.practicum.shareit.booking.dto.BookingDto;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.service.ItemService;
 import ru.practicum.shareit.user.dto.UserDto;
@@ -14,6 +15,7 @@ import ru.practicum.shareit.user.service.UserService;
 import ru.practicum.shareit.utils.BookingStatus;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +26,7 @@ public class BookingServiceImpl implements BookingService {
     private final UserService userService;
     private final ItemService itemService;
     private final BookingMapper bookingMapper;
+    private final ItemMapper itemMapper;
 
     @Override
     public BookingDto createBooking(Long userId, BookingRequestDto bookingRequestDto) {
@@ -91,7 +94,7 @@ public class BookingServiceImpl implements BookingService {
         List<Booking> bookings = getBookingsByState(userId, state, now);
         return bookings.stream()
                 .map(booking -> {
-                    ItemDto itemDto = itemService.getItemByOwnerId(booking.getItem().getId(), userId);
+                    ItemDto itemDto = itemMapper.toItemDto(booking.getItem(), userId, Collections.emptyList(), null, null);
                     return bookingMapper.toBookingDto(booking, itemDto, userDto);
                 })
                 .collect(Collectors.toList());
@@ -105,18 +108,15 @@ public class BookingServiceImpl implements BookingService {
         if (ownerItems.isEmpty()) {
             throw new NotFoundException("У пользователя нет вещей для бронирования, ownerId = " + ownerId);
         }
-
         try {
             BookingStatus.valueOf(state.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new ValidationException("Unknown state: " + state);
         }
-
         List<Booking> bookings = getBookingsByOwnerState(ownerId, state, LocalDateTime.now());
-
         return bookings.stream()
                 .map(booking -> {
-                    ItemDto itemDto = itemService.getItemByOwnerId(booking.getItem().getId(), ownerId);
+                    ItemDto itemDto = itemMapper.toItemDto(booking.getItem(), booking.getBooker().getId(), Collections.emptyList(), null, null);
                     return bookingMapper.toBookingDto(booking, itemDto, userDto);
                 })
                 .collect(Collectors.toList());
