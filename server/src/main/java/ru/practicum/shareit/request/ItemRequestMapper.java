@@ -2,9 +2,12 @@ package ru.practicum.shareit.request;
 
 import org.springframework.stereotype.Component;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.request.dto.CreateItemRequestDto;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
 import ru.practicum.shareit.request.dto.ItemResponseDto;
+import ru.practicum.shareit.user.model.User;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,5 +46,18 @@ public class ItemRequestMapper {
                 .available(item.getAvailable())
                 .build();
     }
+
+    public ItemRequest createDtotoItemRequest(CreateItemRequestDto createItemRequestDto, User requester) {
+        if (createItemRequestDto == null || requester == null) {
+            return null;
+        }
+
+        return ItemRequest.builder()
+                .description(createItemRequestDto.getDescription())
+                .requester(requester)
+                .created(LocalDateTime.now())
+                .build();
+    }
+
 
 }

@@ -25,7 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ItemRequestController {
 
-    private final ItemRequestService requestService;
+    private final ItemRequestServiceImpl requestService;
 
     @PostMapping
     public ResponseEntity<ItemRequestDto> createRequest(

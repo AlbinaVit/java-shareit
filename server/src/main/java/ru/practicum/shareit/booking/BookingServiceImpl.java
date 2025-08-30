@@ -33,21 +33,11 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public BookingDto createBooking(Long userId, BookingRequestDto bookingRequestDto) {
-        if (bookingRequestDto.getStart() == null || bookingRequestDto.getEnd() == null) {
-            throw new ValidationException("Дата начала и окончания бронирования не могут быть null");
-        }
-
         User booker = userService.findUserById(userId);
-
         Item item = itemService.findItemById(bookingRequestDto.getItemId());
 
         if (!item.getAvailable()) {
             throw new ValidationException("Вещь недоступна для бронирования");
-        }
-
-        if (bookingRequestDto.getEnd().isBefore(bookingRequestDto.getStart()) ||
-                bookingRequestDto.getEnd().isEqual(bookingRequestDto.getStart())) {
-            throw new ValidationException("Дата окончания должна быть позже даты начала");
         }
 
         Booking booking = bookingMapper.toBooking(bookingRequestDto, item, booker);
@@ -114,7 +104,7 @@ public class BookingServiceImpl implements BookingService {
         try {
             BookingStatus.valueOf(state.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new ValidationException("Unknown state: " + state);
+            throw new ValidationException("Неизвесный статус: " + state);
         }
         List<Booking> bookings = getBookingsByOwnerState(ownerId, state, LocalDateTime.now());
         return bookings.stream()

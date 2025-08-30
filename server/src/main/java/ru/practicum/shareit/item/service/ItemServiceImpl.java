@@ -1,6 +1,5 @@
 package ru.practicum.shareit.item.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.booking.Booking;
@@ -15,8 +14,7 @@ import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.request.ItemRequest;
-import ru.practicum.shareit.request.ItemRequestRepository;
-import ru.practicum.shareit.user.UserRepository;
+import ru.practicum.shareit.request.ItemRequestService;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
@@ -36,8 +34,7 @@ public class ItemServiceImpl implements ItemService {
     private final ItemMapper itemMapper;
     private final BookingRepository bookingRepository;
     private final CommentRepository commentRepository;
-    private final UserRepository userRepository;
-    private final ItemRequestRepository itemRequestRepository;
+    private final ItemRequestService itemRequestService;
 
     @Override
     public ItemDto updateItem(Long userId, Long itemId, ItemDto itemDto) {
@@ -57,8 +54,7 @@ public class ItemServiceImpl implements ItemService {
             item.setAvailable(itemDto.getAvailable());
         }
         if (itemDto.getRequestId() != null) {
-            ItemRequest request = itemRequestRepository.findById(itemDto.getRequestId())
-                    .orElseThrow(() -> new EntityNotFoundException("Request не найден"));
+            ItemRequest request = itemRequestService.findItemRequestById(itemDto.getRequestId());
             item.setRequest(request);
         } else {
             item.setRequest(null);
@@ -98,8 +94,6 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public List<ItemDto> searchItems(String text) {
-        if (text == null || text.isBlank()) return Collections.emptyList();
-
         List<Item> items = itemRepository.searchAvailableItems(text);
         if (items.isEmpty()) return Collections.emptyList();
 
@@ -184,22 +178,14 @@ public class ItemServiceImpl implements ItemService {
     }
 
     public ItemDto createItem(Long userId, CreateItemDto itemDto) {
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        User owner = userService.findUserById(userId);
 
         ItemRequest request = null;
         if (itemDto.getRequestId() != null) {
-            request = itemRequestRepository.findById(itemDto.getRequestId())
-                    .orElseThrow(() -> new EntityNotFoundException("Request not found with id: " + itemDto.getRequestId()));
+            request = itemRequestService.findItemRequestById(itemDto.getRequestId());
         }
 
-        Item item = Item.builder()
-                .name(itemDto.getName())
-                .description(itemDto.getDescription())
-                .available(itemDto.getAvailable())
-                .owner(owner)
-                .request(request)
-                .build();
+        Item item = itemMapper.toItemFromCreateDto(itemDto, owner, request);
 
         Item savedItem = itemRepository.save(item);
         return itemMapper.toDto(savedItem);

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ import ru.practicum.shareit.booking.dto.BookingRequestDto;
 @RequestMapping(path = "/bookings")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class BookingGatewayController {
 
     private final RestClient bookingRestClient;
@@ -32,6 +34,7 @@ public class BookingGatewayController {
             @RequestHeader("X-Sharer-User-Id") Long userId,
             @Valid @RequestBody BookingRequestDto bookingRequestDto) {
 
+        log.info("Создание бронирования для пользователя: {}", userId);
         return bookingRestClient.post()
                 .header("X-Sharer-User-Id", userId.toString())
                 .body(bookingRequestDto)
