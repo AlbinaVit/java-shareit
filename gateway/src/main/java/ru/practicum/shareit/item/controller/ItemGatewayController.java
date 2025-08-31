@@ -1,6 +1,7 @@
 package ru.practicum.shareit.item.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -79,7 +80,7 @@ public class ItemGatewayController {
 
     @GetMapping("/search")
     public ResponseEntity<Object> searchItems(
-            @RequestParam String text) {
+            @RequestParam @NotBlank(message = "Текст поиска не может быть пустым") String text) {
 
         return itemRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/search")
