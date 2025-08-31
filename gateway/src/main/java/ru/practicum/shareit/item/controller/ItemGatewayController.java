@@ -83,10 +83,6 @@ public class ItemGatewayController {
     public ResponseEntity<Object> searchItems(
             @RequestParam String text) {
 
-        if (text == null || text.isBlank()) {
-            return ResponseEntity.ok(Collections.emptyList());
-        }
-
         return itemRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/search")
                         .queryParam("text", text)
