@@ -2,7 +2,6 @@ package ru.practicum.shareit.item.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,7 +22,6 @@ import java.util.Collections;
 /**
  * TODO Sprint add-controllers.
  */
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/items")
@@ -47,7 +45,7 @@ public class ItemGatewayController {
     public ResponseEntity<Object> updateItem(
             @RequestHeader("X-Sharer-User-Id") Long userId,
             @PathVariable Long itemId,
-            @Valid @RequestBody ItemGatewayDto itemDto) {
+            @RequestBody ItemGatewayDto itemDto) {
 
         return itemRestClient.patch()
                 .uri("/{itemId}", itemId)
@@ -82,6 +80,10 @@ public class ItemGatewayController {
     @GetMapping("/search")
     public ResponseEntity<Object> searchItems(
             @RequestParam String text) {
+
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
 
         return itemRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/search")
