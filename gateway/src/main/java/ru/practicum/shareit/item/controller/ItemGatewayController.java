@@ -19,6 +19,8 @@ import ru.practicum.shareit.item.dto.CommentGatewayDto;
 import ru.practicum.shareit.item.dto.CreateItemGatewayDto;
 import ru.practicum.shareit.item.dto.ItemGatewayDto;
 
+import java.util.Collections;
+
 /**
  * TODO Sprint add-controllers.
  */
@@ -80,7 +82,11 @@ public class ItemGatewayController {
 
     @GetMapping("/search")
     public ResponseEntity<Object> searchItems(
-            @RequestParam @NotBlank(message = "Текст поиска не может быть пустым") String text) {
+            @RequestParam String text) {
+
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
 
         return itemRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/search")
